@@ -1,0 +1,9 @@
+models:
+  llava: llava-hf/llava-1.5-7b-hf
+  clip: openai/clip-vit-base-patch16
+  mnli: roberta-large-mnli
+
+datasets:
+  coco_val_images: data/coco/val2014
+  coco_instances: data/coco/annotations/instances_val2014.json
+  coco_captions: data/coco/annotations/captions_val2014.json

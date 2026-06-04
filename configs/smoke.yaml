@@ -1,0 +1,62 @@
+runtime:
+  device: cpu
+  dtype: float32
+  seed: 42
+
+generation:
+  backend: fake
+  caption_max_new_tokens: 32
+  fake:
+    default_caption: "A man is holding a tennis racket beside a red car."
+    default_answer: "A man is holding a tennis racket beside a car."
+    outputs:
+      smoke_1: "A man is holding a tennis racket beside a red car."
+      smoke_1::vcd: "A man is standing beside a car."
+    counterfactual_outputs:
+      tennis_racket: "A man is holding a tennis racket beside a car."
+      red_car: "A man is holding something beside a red car."
+
+prompts:
+  caption: "Please describe the image in detail."
+
+datasets:
+  coco_chair:
+    sample_file: examples/smoke/caption_samples.jsonl
+    image_root: examples/smoke
+    instances_file: examples/smoke/coco_instances_smoke.json
+
+object_extraction:
+  vocabulary_path: configs/vocab/coco_objects.yaml
+  max_left_modifiers: 1
+
+clip_grounding:
+  backend: fake
+  patch_size: 16
+  top_m: 4
+  fake:
+    default_score: 0.5
+    scores:
+      man: 0.95
+      red car: 0.4
+      tennis racket: 0.1
+
+counterfactual:
+  mask_mode: blur
+  blur_radius: 12
+  expand_pixels: 8
+  image_dir: outputs/smoke/counterfactual_images
+
+nli:
+  backend: fake
+  entailment_threshold: 0.5
+
+ceg:
+  top_k: 2
+
+vcd:
+  cd_alpha: 1.0
+  cd_beta: 0.1
+  noise_step: 500
+
+outputs:
+  root: outputs/smoke

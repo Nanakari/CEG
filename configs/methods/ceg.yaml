@@ -1,0 +1,5 @@
+name: ceg
+description: "Claim-level counterfactual verification using CLIP patches, blur masks, and MNLI CPS."
+defaults:
+  top_k: 3
+  entailment_threshold: 0.5

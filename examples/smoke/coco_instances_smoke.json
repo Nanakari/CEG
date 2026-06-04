@@ -1,0 +1,14 @@
+{
+  "images": [
+    {"id": "smoke_1", "file_name": "smoke_1.jpg"}
+  ],
+  "categories": [
+    {"id": 1, "name": "person"},
+    {"id": 2, "name": "car"},
+    {"id": 3, "name": "tennis racket"}
+  ],
+  "annotations": [
+    {"id": 1, "image_id": "smoke_1", "category_id": 1},
+    {"id": 2, "image_id": "smoke_1", "category_id": 2}
+  ]
+}

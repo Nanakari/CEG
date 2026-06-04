@@ -1,0 +1,57 @@
+runtime:
+  device: cuda
+  dtype: float16
+  seed: 42
+
+generation:
+  backend: llava_hf
+  model_family: llava
+  model_name_or_path: llava-hf/llava-1.5-7b-hf
+  temperature: 0.0
+  top_p: 1.0
+  do_sample: false
+  caption_max_new_tokens: 64
+  return_token_scores: false
+
+prompts:
+  caption: "Please describe the image in detail."
+
+datasets:
+  coco_chair:
+    image_root: data/coco/val2014
+    instances_file: data/coco/annotations/instances_val2014.json
+    captions_file: data/coco/annotations/captions_val2014.json
+    sample_file:
+
+object_extraction:
+  vocabulary_path: configs/vocab/coco_objects.yaml
+  max_left_modifiers: 1
+
+clip_grounding:
+  backend: clip
+  model_name_or_path: openai/clip-vit-base-patch16
+  patch_size: 16
+  top_m: 4
+  batch_size: 64
+
+counterfactual:
+  mask_mode: blur
+  blur_radius: 12
+  expand_pixels: 8
+  image_dir: outputs/main/counterfactual_images
+
+nli:
+  backend: mnli
+  model_name_or_path: roberta-large-mnli
+  entailment_threshold: 0.5
+
+ceg:
+  top_k: 3
+
+vcd:
+  cd_alpha: 1.0
+  cd_beta: 0.1
+  noise_step: 500
+
+outputs:
+  root: outputs/main

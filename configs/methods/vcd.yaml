@@ -1,0 +1,6 @@
+name: vcd
+description: "Visual Contrastive Decoding-compatible baseline."
+defaults:
+  cd_alpha: 1.0
+  cd_beta: 0.1
+  noise_step: 500
