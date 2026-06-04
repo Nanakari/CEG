@@ -5,8 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 
-from huggingface_hub import snapshot_download
-
 
 def main() -> None:
     args = _parse_args()
@@ -14,6 +12,8 @@ def main() -> None:
         os.environ["HF_ENDPOINT"] = args.endpoint
     if args.hf_home:
         os.environ["HF_HOME"] = args.hf_home
+    from huggingface_hub import snapshot_download
+
     for repo_id in args.repo_ids:
         path = snapshot_download(
             repo_id=repo_id,
