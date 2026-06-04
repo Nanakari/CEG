@@ -19,6 +19,8 @@ def main() -> None:
             repo_id=repo_id,
             cache_dir=args.cache_dir,
             resume_download=True,
+            allow_patterns=args.allow_patterns or None,
+            ignore_patterns=args.ignore_patterns or None,
         )
         print(f"{repo_id}: {path}", flush=True)
 
@@ -29,6 +31,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-dir", default=None)
     parser.add_argument("--hf-home", default=None)
     parser.add_argument("--endpoint", default=None)
+    parser.add_argument("--allow-pattern", dest="allow_patterns", action="append", default=[])
+    parser.add_argument("--ignore-pattern", dest="ignore_patterns", action="append", default=[])
     return parser.parse_args()
 
 
