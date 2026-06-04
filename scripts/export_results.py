@@ -21,6 +21,8 @@ COLUMNS = [
     ("Recall", "recall"),
     ("Average Length", "average_length"),
     ("Verified Claims", "verified_claims"),
+    ("Risk Count", "risk_count"),
+    ("Revision Count", "revision_count"),
     ("Relative Time", "relative_time"),
     ("FRR", "false_rejection_rate"),
     ("Correct Retention", "correct_retention_rate"),

@@ -53,6 +53,9 @@ class LlavaHfGenerator:
         *,
         sample_id: str | None = None,
         max_new_tokens: int | None = None,
+        do_sample: bool | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> GenerationResult:
         path = Path(image_path)
         if not path.exists():
@@ -62,13 +65,17 @@ class LlavaHfGenerator:
         inputs = self.processor(text=formatted_prompt, images=image, return_tensors="pt")
         inputs = {key: value.to(self.device) for key, value in inputs.items()}
         input_len = int(inputs["input_ids"].shape[-1])
+        effective_do_sample = self.do_sample if do_sample is None else bool(do_sample)
+        effective_temperature = self.temperature if temperature is None else float(temperature)
+        effective_top_p = self.top_p if top_p is None else float(top_p)
+        effective_max_new_tokens = int(max_new_tokens or self.max_new_tokens)
         kwargs: dict[str, Any] = {
-            "max_new_tokens": int(max_new_tokens or self.max_new_tokens),
-            "do_sample": self.do_sample,
-            "top_p": self.top_p,
+            "max_new_tokens": effective_max_new_tokens,
+            "do_sample": effective_do_sample,
+            "top_p": effective_top_p,
         }
-        if self.do_sample:
-            kwargs["temperature"] = self.temperature
+        if effective_do_sample:
+            kwargs["temperature"] = effective_temperature
 
         start = time.perf_counter()
         with self._torch.inference_mode():
@@ -83,6 +90,10 @@ class LlavaHfGenerator:
                 "backend": "llava_hf",
                 "model_name_or_path": self.model_name_or_path,
                 "sample_id": sample_id,
+                "max_new_tokens": effective_max_new_tokens,
+                "do_sample": effective_do_sample,
+                "temperature": effective_temperature,
+                "top_p": effective_top_p,
             },
         )
 

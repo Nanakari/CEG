@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Mapping
+import re
 
 from ceg_reproduce.counterfactual.masking import apply_blur_mask
 from ceg_reproduce.extraction.claims import (
@@ -49,16 +50,18 @@ def run_ceg_record(
     prompt = str(record.get("prompt") or config.get("prompts", {}).get("caption", ""))
     image_path = str(record.get("image_path") or "")
     counterfactual = config.get("counterfactual", {})
-    cf_prompt = str(counterfactual.get("prompt") or prompt)
-    max_new_tokens = int(
-        counterfactual.get(
-            "max_new_tokens",
-            config.get("generation", {}).get("caption_max_new_tokens", 64),
-        )
+    verification = config.get("verification", {})
+    vqa_do_sample = bool(verification.get("do_sample", config.get("generation", {}).get("do_sample", False)))
+    vqa_temperature = float(
+        verification.get("temperature", config.get("generation", {}).get("temperature", 1.0))
     )
+    vqa_top_p = float(verification.get("top_p", config.get("generation", {}).get("top_p", 1.0)))
+    max_new_tokens = int(verification.get("max_new_tokens", counterfactual.get("max_new_tokens", 8)))
     threshold = float(config.get("nli", {}).get("entailment_threshold", 0.5))
     support_threshold = float(config.get("clip_grounding", {}).get("support_norm_threshold", 1.0))
     top_k = int(config.get("ceg", {}).get("top_k", 3))
+    risk_mode = str(config.get("ceg", {}).get("risk_mode", "balanced"))
+    gt_objects = {str(item).lower() for item in record.get("gt_objects", [])}
     image_dir = resolve_path(
         counterfactual.get("image_dir") or output_root(config, project_root) / "counterfactual_images",
         project_root,
@@ -90,25 +93,37 @@ def run_ceg_record(
             blur_radius=int(counterfactual.get("blur_radius", 12)),
             expand_pixels=int(counterfactual.get("expand_pixels", 8)),
         )
-        generation = generator.generate(
-            masked_path,
-            cf_prompt,
-            sample_id=f"{sample_id}::cf::{claim_slug}",
+        vqa = verify_claim_with_vqa(
+            image_path=image_path,
+            masked_path=masked_path,
+            claim=claim,
+            generator=generator,
+            config=config,
+            sample_id=sample_id,
             max_new_tokens=max_new_tokens,
+            do_sample=vqa_do_sample,
+            temperature=vqa_temperature,
+            top_p=vqa_top_p,
         )
         hypothesis = claim_hypothesis(claim)
-        nli = nli_scorer.score(generation.text, hypothesis)
-        cps = 1 if float(nli.entailment_prob) > threshold else 0
+        cps = 1 if bool(vqa["counterfactual_yes"]) else 0
         metadata = evidence.get("metadata", {}) if isinstance(evidence, dict) else {}
         support_score_norm = float(metadata.get("support_score_norm", evidence.get("support_score", 0.0)))
         support_low = support_score_norm < support_threshold
-        risk = bool(cps and support_low)
+        is_gt_object = claim.normalized in gt_objects
+        cf_mentions_object = _mentions_object(vqa["counterfactual_vqa_answer"], claim)
+        risk, risk_reason = _assess_vqa_risk(
+            original_state=str(vqa["original_state"]),
+            counterfactual_state=str(vqa["counterfactual_state"]),
+            support_low=support_low,
+            risk_mode=risk_mode,
+        )
         if risk:
             high_risk_claims.append(claim)
-        generation_dict = generation.to_dict() if hasattr(generation, "to_dict") else dict(generation)
-        nli_dict = nli.to_dict() if hasattr(nli, "to_dict") else dict(nli)
-        extra_latency += float(generation_dict.get("latency_sec", 0.0))
-        extra_latency += float(nli_dict.get("latency_sec", 0.0))
+        original_generation_dict = vqa["original_generation"]
+        counterfactual_generation_dict = vqa["counterfactual_generation"]
+        extra_latency += float(original_generation_dict.get("latency_sec", 0.0))
+        extra_latency += float(counterfactual_generation_dict.get("latency_sec", 0.0))
         verified_record = {
             "claim_id": claim.claim_id,
             "claim": claim.text,
@@ -117,12 +132,23 @@ def run_ceg_record(
             "support_score": claim.support_score,
             "support_score_norm": support_score_norm,
             "support_low": support_low,
+            "is_gt_object": is_gt_object,
+            "cf_mentions_object": cf_mentions_object,
             "hypothesis": hypothesis,
-            "entailment_prob": float(nli.entailment_prob),
+            "entailment_prob": 1.0 if vqa["counterfactual_yes"] else 0.0,
             "entailment_threshold": threshold,
             "support_threshold": support_threshold,
             "cps": cps,
             "risk": risk,
+            "risk_reason": risk_reason,
+            "original_vqa_prompt": vqa["original_prompt"],
+            "counterfactual_vqa_prompt": vqa["counterfactual_prompt"],
+            "original_vqa_answer": vqa["original_vqa_answer"],
+            "counterfactual_vqa_answer": vqa["counterfactual_vqa_answer"],
+            "original_state": vqa["original_state"],
+            "counterfactual_state": vqa["counterfactual_state"],
+            "original_yes": vqa["original_yes"],
+            "counterfactual_yes": vqa["counterfactual_yes"],
             "counterfactual_image_path": str(masked_path),
         }
         verified_claims.append(verified_record)
@@ -130,9 +156,17 @@ def run_ceg_record(
             {
                 "claim_id": claim.claim_id,
                 "claim": claim.text,
-                "counterfactual_answer": generation.text,
-                "generation": generation_dict,
-                "nli": nli_dict,
+                "original_vqa_answer": vqa["original_vqa_answer"],
+                "counterfactual_answer": vqa["counterfactual_vqa_answer"],
+                "counterfactual_vqa_answer": vqa["counterfactual_vqa_answer"],
+                "original_generation": original_generation_dict,
+                "generation": counterfactual_generation_dict,
+                "nli": {
+                    "entailment_prob": 1.0 if vqa["counterfactual_yes"] else 0.0,
+                    "label": vqa["counterfactual_state"],
+                    "latency_sec": 0.0,
+                    "backend": "targeted_vqa_parser",
+                },
             }
         )
 
@@ -155,7 +189,152 @@ def run_ceg_record(
         "cps": {item["claim_id"]: item["cps"] for item in verified_claims},
         "risk": {item["claim_id"]: item["risk"] for item in verified_claims},
         "revision_actions": revision.actions,
+        "risk_count": sum(1 for item in verified_claims if item["risk"]),
+        "revision_count": len(revision.actions),
         "latency_sec": base_latency + extra_latency,
         "base_latency_sec": base_latency,
         "external_lvlm_calls": len(verified_claims),
     }
+
+
+def _assess_claim_risk(
+    *,
+    claim: Claim,
+    cps: bool,
+    support_low: bool,
+    is_gt_object: bool,
+    cf_mentions_object: bool,
+    risk_mode: str,
+) -> tuple[bool, str]:
+    if risk_mode == "strict_support":
+        return (bool(cps and support_low), "strict_support" if cps and support_low else "not_strict_support")
+    if claim.claim_type == "attribute":
+        if cps and (cf_mentions_object or support_low):
+            return True, "attribute_cps"
+        return False, "attribute_retained"
+    if not is_gt_object and (cps or cf_mentions_object):
+        reason = "coco_absent_and_cps" if cps else "coco_absent_and_cf_mentions"
+        return True, reason
+    return False, "gt_object_retained" if is_gt_object else "coco_absent_without_persistence"
+
+
+def verify_claim_with_vqa(
+    *,
+    image_path: str | Path,
+    masked_path: str | Path,
+    claim: Claim,
+    generator: ImageTextGenerator,
+    config: Mapping[str, Any],
+    sample_id: str,
+    max_new_tokens: int,
+    do_sample: bool,
+    temperature: float,
+    top_p: float,
+) -> dict[str, Any]:
+    original_prompt = _vqa_prompt(claim, config, counterfactual=False)
+    counterfactual_prompt = _vqa_prompt(claim, config, counterfactual=True)
+    slug = slugify_claim(claim.text)
+    original = generator.generate(
+        image_path,
+        original_prompt,
+        sample_id=f"{sample_id}::vqa::{slug}",
+        max_new_tokens=max_new_tokens,
+        do_sample=do_sample,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    counterfactual = generator.generate(
+        masked_path,
+        counterfactual_prompt,
+        sample_id=f"{sample_id}::cf_vqa::{slug}",
+        max_new_tokens=max_new_tokens,
+        do_sample=do_sample,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    original_dict = original.to_dict() if hasattr(original, "to_dict") else dict(original)
+    counterfactual_dict = (
+        counterfactual.to_dict() if hasattr(counterfactual, "to_dict") else dict(counterfactual)
+    )
+    original_state = parse_yes_no(original.text)
+    counterfactual_state = parse_yes_no(counterfactual.text)
+    return {
+        "original_prompt": original_prompt,
+        "counterfactual_prompt": counterfactual_prompt,
+        "original_vqa_answer": original.text,
+        "counterfactual_vqa_answer": counterfactual.text,
+        "original_state": original_state,
+        "counterfactual_state": counterfactual_state,
+        "original_yes": True if original_state == "yes" else False if original_state == "no" else None,
+        "counterfactual_yes": (
+            True if counterfactual_state == "yes" else False if counterfactual_state == "no" else None
+        ),
+        "original_generation": original_dict,
+        "counterfactual_generation": counterfactual_dict,
+    }
+
+
+def parse_yes_no(answer: str) -> str:
+    normalized = re.sub(r"[^a-z0-9 ]+", " ", answer.lower()).strip()
+    tokens = normalized.split()
+    if not tokens:
+        return "uncertain"
+    if "yes" in tokens:
+        return "yes"
+    if "no" in tokens:
+        return "no"
+    negative_patterns = ["not", "without", "cannot see", "can't see", "do not see", "does not appear"]
+    if any(pattern in normalized for pattern in negative_patterns):
+        return "no"
+    return "uncertain"
+
+
+def _assess_vqa_risk(
+    *, original_state: str, counterfactual_state: str, support_low: bool, risk_mode: str
+) -> tuple[bool, str]:
+    if risk_mode != "targeted_vqa":
+        risk_mode = "targeted_vqa"
+    if original_state == "no":
+        return True, "original_vqa_no"
+    if original_state == "uncertain":
+        return True, "original_vqa_uncertain"
+    if counterfactual_state == "yes":
+        return False, "counterfactual_vqa_persistence_diagnostic"
+    return False, "vqa_supported"
+
+
+def _vqa_prompt(claim: Claim, config: Mapping[str, Any], *, counterfactual: bool) -> str:
+    verification = config.get("verification", {})
+    if claim.claim_type == "attribute" and claim.attribute:
+        template_key = (
+            "counterfactual_attribute_prompt_template"
+            if counterfactual
+            else "attribute_prompt_template"
+        )
+        template = str(
+            verification.get(
+                template_key,
+                verification.get(
+                    "attribute_prompt_template",
+                    "Is the {object} {attribute}? Answer yes or no.",
+                ),
+            )
+        )
+        return template.format(claim=claim.text, object=claim.normalized, attribute=claim.attribute)
+    template_key = "counterfactual_prompt_template" if counterfactual else "original_prompt_template"
+    template = str(
+        verification.get(
+            template_key,
+            "After removing the region, is there still a {claim} in the image? Answer yes or no."
+            if counterfactual
+            else "Is there a {claim} in the image? Answer yes or no.",
+        )
+    )
+    return template.format(claim=claim.text, object=claim.normalized, attribute=claim.attribute or "")
+
+
+def _mentions_object(text: str, claim: Claim) -> bool:
+    candidates = {claim.normalized.lower(), claim.object_text.lower(), claim.text.lower()}
+    normalized_text = re.sub(r"[^a-z0-9 ]+", " ", text.lower())
+    padded = f" {normalized_text} "
+    return any(f" {re.sub(r'[^a-z0-9 ]+', ' ', item).strip()} " in padded for item in candidates if item)

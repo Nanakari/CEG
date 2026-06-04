@@ -25,5 +25,8 @@ class ImageTextGenerator(Protocol):
         *,
         sample_id: str | None = None,
         max_new_tokens: int | None = None,
+        do_sample: bool | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
     ) -> GenerationResult:
         ...

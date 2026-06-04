@@ -22,6 +22,8 @@ def compute_chair_metrics(
     lengths: list[int] = []
     verified_claim_counts: list[int] = []
     latencies: list[float] = []
+    risk_counts: list[int] = []
+    revision_counts: list[int] = []
     correct_original_total = 0
     correct_retained_total = 0
     hallucinated_original_total = 0
@@ -53,6 +55,8 @@ def compute_chair_metrics(
         recalled_total += len(predicted_set & gt_objects)
         lengths.append(len(caption.split()))
         verified_claim_counts.append(len(record.get("verified_claims", []) or []))
+        risk_counts.append(int(record.get("risk_count", 0) or 0))
+        revision_counts.append(int(record.get("revision_count", len(record.get("revision_actions", []) or [])) or 0))
         latencies.append(float(record.get("latency_sec", 0.0)))
 
     avg_latency = _mean(latencies)
@@ -63,6 +67,8 @@ def compute_chair_metrics(
         "recall": recalled_total / gt_total if gt_total else 0.0,
         "average_length": _mean(lengths),
         "verified_claims": _mean(verified_claim_counts),
+        "risk_count": _mean(risk_counts),
+        "revision_count": _mean(revision_counts),
         "relative_time": relative_time,
         "false_rejection_rate": (
             (correct_original_total - correct_retained_total) / correct_original_total

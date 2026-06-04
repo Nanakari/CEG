@@ -9,6 +9,9 @@ from typing import Any, Iterable
 from ceg_reproduce.extraction.claims import Claim
 
 
+_COMPOUND_PREFIX_OBJECTS = {"microwave"}
+
+
 @dataclass
 class RevisionResult:
     original_caption: str
@@ -48,6 +51,13 @@ def _replacement_for_claim(caption: str, claim: Claim) -> tuple[int, int, str]:
     start, end = claim.span
     if claim.claim_type == "attribute":
         return start, end, claim.object_text
+    following_word = _following_word(caption, end)
+    if following_word and " " not in claim.text.strip() and claim.normalized in _COMPOUND_PREFIX_OBJECTS:
+        article_span = _preceding_article_span(caption, start)
+        if article_span is not None:
+            article_start, _ = article_span
+            return article_start, end, _article_for(following_word)
+        return start, end, ""
     article_span = _preceding_article_span(caption, start)
     if article_span is not None:
         article_start, _ = article_span
@@ -58,6 +68,15 @@ def _replacement_for_claim(caption: str, claim: Claim) -> tuple[int, int, str]:
 def _preceding_article_span(caption: str, start: int) -> tuple[int, int] | None:
     match = re.search(r"\b(a|an|the)\s+$", caption[:start], flags=re.IGNORECASE)
     return match.span() if match else None
+
+
+def _following_word(caption: str, end: int) -> str | None:
+    match = re.match(r"\s+([A-Za-z][A-Za-z-]*)", caption[end:])
+    return match.group(1).lower() if match else None
+
+
+def _article_for(word: str) -> str:
+    return "an" if word[:1].lower() in {"a", "e", "i", "o", "u"} else "a"
 
 
 def _cleanup(text: str) -> str:

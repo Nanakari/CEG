@@ -7,9 +7,9 @@ generation:
   backend: llava_hf
   model_family: llava
   model_name_or_path: llava-hf/llava-1.5-7b-hf
-  temperature: 0.0
+  temperature: 1.0
   top_p: 1.0
-  do_sample: false
+  do_sample: true
   caption_max_new_tokens: 64
   return_token_scores: false
 
@@ -40,8 +40,22 @@ counterfactual:
   blur_radius: 12
   expand_pixels: 8
   prompt: "Answer with a short description of the visible objects."
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
   max_new_tokens: 32
   image_dir: outputs/main/counterfactual_images
+
+verification:
+  mode: targeted_vqa
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  max_new_tokens: 8
+  original_prompt_template: "Is there a {claim} in the image? Answer yes or no."
+  counterfactual_prompt_template: "After removing the region, is there still a {claim} in the image? Answer yes or no."
+  attribute_prompt_template: "Is the {object} {attribute}? Answer yes or no."
+  counterfactual_attribute_prompt_template: "After removing the region, is the {object} still {attribute}? Answer yes or no."
 
 nli:
   backend: mnli
@@ -50,6 +64,7 @@ nli:
 
 ceg:
   top_k: 3
+  risk_mode: targeted_vqa
 
 vcd:
   cd_alpha: 1.0

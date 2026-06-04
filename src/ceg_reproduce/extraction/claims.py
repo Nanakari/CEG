@@ -77,6 +77,8 @@ class ClaimExtractor:
             pattern = re.compile(rf"(?<![A-Za-z]){re.escape(alias)}(?![A-Za-z])", re.IGNORECASE)
             for match in pattern.finditer(caption):
                 start, end = match.span()
+                if normalized == "orange" and _looks_like_color_modifier(caption, end, self.objects):
+                    continue
                 if _overlaps(start, end, occupied):
                     continue
                 occupied.append((start, end))
@@ -129,7 +131,17 @@ class ClaimExtractor:
 
 
 def select_top_claims(claims: Iterable[Claim], *, top_k: int) -> list[Claim]:
-    return sorted(list(claims), key=_rank_key)[: max(0, top_k)]
+    selected = []
+    seen_object_keys: set[str] = set()
+    for claim in sorted(list(claims), key=_rank_key):
+        if claim.claim_type == "object":
+            if claim.normalized in seen_object_keys:
+                continue
+            seen_object_keys.add(claim.normalized)
+        selected.append(claim)
+        if len(selected) >= max(0, top_k):
+            break
+    return selected
 
 
 def slugify_claim(text: str) -> str:
@@ -146,9 +158,9 @@ def claim_hypothesis(claim: Claim) -> str:
 def _rank_key(claim: Claim) -> tuple[int, int, float, int]:
     features = claim.rank_features or {}
     object_match = 1 if features.get("object_match", True) else 0
-    has_attribute = 1 if features.get("has_attribute", claim.claim_type == "attribute") else 0
+    is_object_claim = 1 if claim.claim_type == "object" else 0
     concreteness = float(features.get("concreteness", 1.0))
-    return (-object_match, -has_attribute, -concreteness, claim.span[0])
+    return (-object_match, -is_object_claim, -concreteness, claim.span[0])
 
 
 def _overlaps(start: int, end: int, spans: Iterable[tuple[int, int]]) -> bool:
@@ -162,3 +174,11 @@ def _clean_text(text: str) -> str:
 def _concreteness(normalized: str) -> float:
     abstract = {"scene", "view", "area", "background", "image"}
     return 0.0 if normalized.lower() in abstract else 1.0
+
+
+def _looks_like_color_modifier(caption: str, object_end: int, objects: Iterable[str]) -> bool:
+    match = re.match(r"\s+([A-Za-z][A-Za-z-]*)", caption[object_end:])
+    if not match:
+        return False
+    next_word = match.group(1).lower()
+    return next_word not in set(objects)

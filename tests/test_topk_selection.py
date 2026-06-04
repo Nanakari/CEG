@@ -3,7 +3,7 @@ from __future__ import annotations
 from ceg_reproduce.extraction.claims import Claim, select_top_claims
 
 
-def test_topk_prefers_attributes_then_early_claims_without_clip_support() -> None:
+def test_topk_prefers_object_claims_for_chair_budget() -> None:
     man = Claim(
         claim_id="c1",
         text="man",
@@ -38,4 +38,38 @@ def test_topk_prefers_attributes_then_early_claims_without_clip_support() -> Non
 
     selected = select_top_claims([man, racket, car], top_k=2)
 
-    assert [claim.text for claim in selected] == ["red car", "man"]
+    assert [claim.text for claim in selected] == ["man", "tennis racket"]
+
+
+def test_topk_deduplicates_repeated_object_claims() -> None:
+    first = Claim(
+        claim_id="c1",
+        text="motorcycle",
+        normalized="motorcycle",
+        object_text="motorcycle",
+        claim_type="object",
+        span=(0, 10),
+        rank_features={"object_match": True, "concreteness": 1.0},
+    )
+    duplicate = Claim(
+        claim_id="c2",
+        text="motorcycle",
+        normalized="motorcycle",
+        object_text="motorcycle",
+        claim_type="object",
+        span=(20, 30),
+        rank_features={"object_match": True, "concreteness": 1.0},
+    )
+    car = Claim(
+        claim_id="c3",
+        text="car",
+        normalized="car",
+        object_text="car",
+        claim_type="object",
+        span=(40, 43),
+        rank_features={"object_match": True, "concreteness": 1.0},
+    )
+
+    selected = select_top_claims([first, duplicate, car], top_k=3)
+
+    assert [claim.claim_id for claim in selected] == ["c1", "c3"]

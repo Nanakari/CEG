@@ -39,13 +39,76 @@ def test_counterfactual_persistence_generalizes_high_risk_object() -> None:
 
     assert "tennis racket" not in revised["revised_caption"]
     assert "an object" in revised["revised_caption"]
-    assert "red car" in revised["revised_caption"]
+    assert "red car" not in revised["revised_caption"]
+    assert "car" in revised["revised_caption"]
     assert len(revised["verified_claims"]) == 3
     by_claim = {item["claim"]: item for item in revised["verified_claims"]}
-    assert by_claim["tennis racket"]["support_low"] is True
+    assert by_claim["tennis racket"]["original_state"] == "no"
+    assert by_claim["tennis racket"]["counterfactual_state"] == "no"
     assert by_claim["tennis racket"]["risk"] is True
-    assert by_claim["red car"]["support_low"] is False
-    assert by_claim["red car"]["risk"] is False
+    assert by_claim["tennis racket"]["risk_reason"] == "original_vqa_no"
+    assert by_claim["red car"]["risk_reason"] == "original_vqa_no"
+    assert by_claim["red car"]["risk"] is True
+    assert revised["risk_count"] == 2
+    assert revised["revision_count"] == 2
+
+
+def test_original_yes_counterfactual_no_keeps_supported_object() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+    record = {
+        "sample_id": "smoke_1",
+        "image_id": "smoke_1",
+        "image_path": str(ROOT / "examples/smoke/smoke_1.jpg"),
+        "prompt": config["prompts"]["caption"],
+        "caption": "A man is standing beside a car.",
+        "gt_objects": ["person", "car"],
+        "latency_sec": 1.0,
+    }
+
+    revised = run_ceg_record(
+        record,
+        FakeGenerator(config, method="base"),
+        build_grounder(config),
+        build_nli_scorer(config),
+        extractor,
+        config,
+        ROOT,
+    )
+
+    assert revised["revised_caption"] == record["caption"]
+    assert revised["risk_count"] == 0
+
+
+def test_counterfactual_yes_is_diagnostic_not_direct_object_risk() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    config["generation"]["fake"]["vqa_outputs"]["counterfactual:man"] = "Yes."
+    extractor = ClaimExtractor.from_config(config, ROOT)
+    record = {
+        "sample_id": "smoke_1",
+        "image_id": "smoke_1",
+        "image_path": str(ROOT / "examples/smoke/smoke_1.jpg"),
+        "prompt": config["prompts"]["caption"],
+        "caption": "A man is standing beside a car.",
+        "gt_objects": ["person", "car"],
+        "latency_sec": 1.0,
+    }
+
+    revised = run_ceg_record(
+        record,
+        FakeGenerator(config, method="base"),
+        build_grounder(config),
+        build_nli_scorer(config),
+        extractor,
+        config,
+        ROOT,
+    )
+
+    man = next(item for item in revised["verified_claims"] if item["claim"] == "man")
+    assert man["counterfactual_state"] == "yes"
+    assert man["risk"] is False
+    assert man["risk_reason"] == "counterfactual_vqa_persistence_diagnostic"
+    assert revised["revised_caption"] == record["caption"]
 
 
 def test_ceg_only_grounds_selected_topk_claims() -> None:
@@ -73,7 +136,7 @@ def test_ceg_only_grounds_selected_topk_claims() -> None:
         ROOT,
     )
 
-    assert grounder.texts == ["red car", "man"]
+    assert grounder.texts == ["man", "tennis racket"]
 
 
 class SpyGrounder:

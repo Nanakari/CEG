@@ -21,3 +21,12 @@ def test_extracts_object_and_attribute_claims() -> None:
     assert by_text["red car"].claim_type == "attribute"
     assert by_text["red car"].attribute == "red"
     assert by_text["red car"].normalized == "car"
+
+
+def test_orange_modifier_is_not_extracted_as_fruit_object() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+
+    claims = extractor.extract("A truck carries a tall orange load.")
+
+    assert "orange" not in {claim.text.lower() for claim in claims}

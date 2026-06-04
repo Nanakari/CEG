@@ -5,6 +5,9 @@ runtime:
 
 generation:
   backend: fake
+  temperature: 1.0
+  top_p: 1.0
+  do_sample: true
   caption_max_new_tokens: 32
   fake:
     default_caption: "A man is holding a tennis racket beside a red car."
@@ -15,6 +18,13 @@ generation:
     counterfactual_outputs:
       tennis_racket: "A man is holding a tennis racket beside a car."
       red_car: "A man is holding something beside a red car."
+    vqa_outputs:
+      original:man: "Yes."
+      counterfactual:man: "No."
+      original:tennis_racket: "No."
+      counterfactual:tennis_racket: "No."
+      original:red_car: "No."
+      counterfactual:red_car: "No."
 
 prompts:
   caption: "Please describe the image in detail."
@@ -51,8 +61,22 @@ counterfactual:
   blur_radius: 12
   expand_pixels: 8
   prompt: "Answer with a short description of the visible objects."
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
   max_new_tokens: 32
   image_dir: outputs/smoke/counterfactual_images
+
+verification:
+  mode: targeted_vqa
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  max_new_tokens: 8
+  original_prompt_template: "Is there a {claim} in the image? Answer yes or no."
+  counterfactual_prompt_template: "After removing the region, is there still a {claim} in the image? Answer yes or no."
+  attribute_prompt_template: "Is the {object} {attribute}? Answer yes or no."
+  counterfactual_attribute_prompt_template: "After removing the region, is the {object} still {attribute}? Answer yes or no."
 
 nli:
   backend: fake
@@ -60,6 +84,7 @@ nli:
 
 ceg:
   top_k: 3
+  risk_mode: targeted_vqa
 
 vcd:
   cd_alpha: 1.0

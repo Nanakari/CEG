@@ -17,6 +17,8 @@ def test_chair_metrics_count_hallucinated_objects_and_recall() -> None:
         {
             "caption": "A person is beside a car and a tennis racket.",
             "gt_objects": ["person", "car"],
+            "risk_count": 2,
+            "revision_count": 1,
             "latency_sec": 2.0,
         }
     ]
@@ -26,6 +28,8 @@ def test_chair_metrics_count_hallucinated_objects_and_recall() -> None:
     assert metrics["chairs"] == 1.0
     assert metrics["chairi"] == 1 / 3
     assert metrics["recall"] == 1.0
+    assert metrics["risk_count"] == 2.0
+    assert metrics["revision_count"] == 1.0
     assert metrics["relative_time"] == 2.0
 
 
