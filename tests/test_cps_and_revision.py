@@ -46,8 +46,8 @@ def test_counterfactual_persistence_generalizes_high_risk_object() -> None:
     assert by_claim["tennis racket"]["original_state"] == "no"
     assert by_claim["tennis racket"]["counterfactual_state"] == "no"
     assert by_claim["tennis racket"]["risk"] is True
-    assert by_claim["tennis racket"]["risk_reason"] == "no_and_low_support"
-    assert by_claim["red car"]["risk_reason"] == "attribute_no"
+    assert by_claim["tennis racket"]["risk_reason"] == "original_vqa_no"
+    assert by_claim["red car"]["risk_reason"] == "original_vqa_no"
     assert by_claim["red car"]["risk"] is True
     assert revised["risk_count"] == 2
     assert revised["revision_count"] == 2
@@ -114,6 +114,7 @@ def test_counterfactual_yes_is_diagnostic_not_direct_object_risk() -> None:
 
 def test_support_guard_retains_object_when_vqa_no_but_local_support_is_high() -> None:
     config = load_config(ROOT / "configs/smoke.yaml")
+    config["ceg"]["risk_mode"] = "targeted_vqa_support_guard"
     config["clip_grounding"]["fake"]["score_norms"]["tennis racket"] = 2.0
     extractor = ClaimExtractor.from_config(config, ROOT)
     record = {
@@ -178,7 +179,7 @@ def test_ceg_method_defaults_are_applied() -> None:
 
     method_config = config_for_method(config, "ceg")
 
-    assert method_config["ceg"]["risk_mode"] == "targeted_vqa_support_guard"
+    assert method_config["ceg"]["risk_mode"] == "targeted_vqa"
 
 
 class SpyGrounder:

@@ -3,4 +3,4 @@ description: "Claim-level counterfactual verification using CLIP patches, blur m
 defaults:
   top_k: 3
   entailment_threshold: 0.7
-  risk_mode: targeted_vqa_support_guard
+  risk_mode: targeted_vqa
