@@ -143,13 +143,12 @@ def claim_hypothesis(claim: Claim) -> str:
     return f"The image contains {article} {claim.text.lower()}."
 
 
-def _rank_key(claim: Claim) -> tuple[int, int, float, float, int]:
+def _rank_key(claim: Claim) -> tuple[int, int, float, int]:
     features = claim.rank_features or {}
     object_match = 1 if features.get("object_match", True) else 0
     has_attribute = 1 if features.get("has_attribute", claim.claim_type == "attribute") else 0
     concreteness = float(features.get("concreteness", 1.0))
-    support = float(claim.support_score if claim.support_score is not None else 0.5)
-    return (-object_match, -has_attribute, -concreteness, support, claim.span[0])
+    return (-object_match, -has_attribute, -concreteness, claim.span[0])
 
 
 def _overlaps(start: int, end: int, spans: Iterable[tuple[int, int]]) -> bool:

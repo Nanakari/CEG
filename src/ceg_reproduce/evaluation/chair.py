@@ -22,6 +22,10 @@ def compute_chair_metrics(
     lengths: list[int] = []
     verified_claim_counts: list[int] = []
     latencies: list[float] = []
+    correct_original_total = 0
+    correct_retained_total = 0
+    hallucinated_original_total = 0
+    hallucinated_removed_total = 0
 
     for record in records:
         caption = str(record.get("revised_caption") or record.get("caption") or record.get("text") or "")
@@ -29,6 +33,17 @@ def compute_chair_metrics(
         predicted = [claim.normalized for claim in claims]
         predicted_set = set(predicted)
         gt_objects = {str(item).lower() for item in record.get("gt_objects", [])}
+        original_caption = str(
+            record.get("original_caption") or record.get("caption") or record.get("text") or ""
+        )
+        original_predicted = [claim.normalized for claim in extractor.extract(original_caption)]
+        original_predicted_set = set(original_predicted)
+        correct_original = {obj for obj in original_predicted_set if obj in gt_objects}
+        hallucinated_original = {obj for obj in original_predicted_set if gt_objects and obj not in gt_objects}
+        correct_original_total += len(correct_original)
+        correct_retained_total += len(correct_original & predicted_set)
+        hallucinated_original_total += len(hallucinated_original)
+        hallucinated_removed_total += len(hallucinated_original - predicted_set)
         hallucinated = [obj for obj in predicted if obj and gt_objects and obj not in gt_objects]
         sentence_total += 1
         object_total += len(predicted)
@@ -49,6 +64,19 @@ def compute_chair_metrics(
         "average_length": _mean(lengths),
         "verified_claims": _mean(verified_claim_counts),
         "relative_time": relative_time,
+        "false_rejection_rate": (
+            (correct_original_total - correct_retained_total) / correct_original_total
+            if correct_original_total
+            else 0.0
+        ),
+        "correct_retention_rate": (
+            correct_retained_total / correct_original_total if correct_original_total else 0.0
+        ),
+        "hallucinated_removal_rate": (
+            hallucinated_removed_total / hallucinated_original_total
+            if hallucinated_original_total
+            else 0.0
+        ),
         "num_samples": float(sentence_total),
     }
 

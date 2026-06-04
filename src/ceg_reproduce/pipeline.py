@@ -48,24 +48,31 @@ def run_ceg_record(
     caption = str(record.get("caption") or record.get("text") or "")
     prompt = str(record.get("prompt") or config.get("prompts", {}).get("caption", ""))
     image_path = str(record.get("image_path") or "")
-    max_new_tokens = int(config.get("generation", {}).get("caption_max_new_tokens", 64))
-    threshold = float(config.get("nli", {}).get("entailment_threshold", 0.5))
-    top_k = int(config.get("ceg", {}).get("top_k", 3))
     counterfactual = config.get("counterfactual", {})
+    cf_prompt = str(counterfactual.get("prompt") or prompt)
+    max_new_tokens = int(
+        counterfactual.get(
+            "max_new_tokens",
+            config.get("generation", {}).get("caption_max_new_tokens", 64),
+        )
+    )
+    threshold = float(config.get("nli", {}).get("entailment_threshold", 0.5))
+    support_threshold = float(config.get("clip_grounding", {}).get("support_norm_threshold", 1.0))
+    top_k = int(config.get("ceg", {}).get("top_k", 3))
     image_dir = resolve_path(
         counterfactual.get("image_dir") or output_root(config, project_root) / "counterfactual_images",
         project_root,
     )
 
     claims = extractor.extract(caption)
+    selected = select_top_claims(claims, top_k=top_k)
     evidence_records = []
-    for claim in claims:
-        evidence = grounder.locate(image_path, claim.text)
+    evidences = grounder.locate_many(image_path, [claim.text for claim in selected])
+    for claim, evidence in zip(selected, evidences):
         claim.support_score = float(evidence.support_score)
         evidence_dict = evidence.to_dict() if hasattr(evidence, "to_dict") else dict(evidence)
         evidence_records.append({"claim_id": claim.claim_id, **evidence_dict})
 
-    selected = select_top_claims(claims, top_k=top_k)
     verified_claims = []
     counterfactual_answers = []
     high_risk_claims: list[Claim] = []
@@ -85,14 +92,17 @@ def run_ceg_record(
         )
         generation = generator.generate(
             masked_path,
-            prompt,
+            cf_prompt,
             sample_id=f"{sample_id}::cf::{claim_slug}",
             max_new_tokens=max_new_tokens,
         )
         hypothesis = claim_hypothesis(claim)
         nli = nli_scorer.score(generation.text, hypothesis)
         cps = 1 if float(nli.entailment_prob) > threshold else 0
-        risk = bool(cps)
+        metadata = evidence.get("metadata", {}) if isinstance(evidence, dict) else {}
+        support_score_norm = float(metadata.get("support_score_norm", evidence.get("support_score", 0.0)))
+        support_low = support_score_norm < support_threshold
+        risk = bool(cps and support_low)
         if risk:
             high_risk_claims.append(claim)
         generation_dict = generation.to_dict() if hasattr(generation, "to_dict") else dict(generation)
@@ -105,8 +115,12 @@ def run_ceg_record(
             "normalized": claim.normalized,
             "claim_type": claim.claim_type,
             "support_score": claim.support_score,
+            "support_score_norm": support_score_norm,
+            "support_low": support_low,
             "hypothesis": hypothesis,
             "entailment_prob": float(nli.entailment_prob),
+            "entailment_threshold": threshold,
+            "support_threshold": support_threshold,
             "cps": cps,
             "risk": risk,
             "counterfactual_image_path": str(masked_path),

@@ -3,7 +3,7 @@ from __future__ import annotations
 from ceg_reproduce.extraction.claims import Claim, select_top_claims
 
 
-def test_topk_prefers_attributes_then_low_clip_support() -> None:
+def test_topk_prefers_attributes_then_early_claims_without_clip_support() -> None:
     man = Claim(
         claim_id="c1",
         text="man",
@@ -38,4 +38,4 @@ def test_topk_prefers_attributes_then_low_clip_support() -> None:
 
     selected = select_top_claims([man, racket, car], top_k=2)
 
-    assert [claim.text for claim in selected] == ["red car", "tennis racket"]
+    assert [claim.text for claim in selected] == ["red car", "man"]

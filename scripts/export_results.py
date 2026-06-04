@@ -22,6 +22,9 @@ COLUMNS = [
     ("Average Length", "average_length"),
     ("Verified Claims", "verified_claims"),
     ("Relative Time", "relative_time"),
+    ("FRR", "false_rejection_rate"),
+    ("Correct Retention", "correct_retention_rate"),
+    ("Hallucinated Removal", "hallucinated_removal_rate"),
 ]
 
 

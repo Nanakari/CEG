@@ -30,20 +30,23 @@ object_extraction:
 clip_grounding:
   backend: clip
   model_name_or_path: openai/clip-vit-base-patch16
-  patch_size: 16
+  patch_size: 32
   top_m: 4
   batch_size: 64
+  support_norm_threshold: 1.0
 
 counterfactual:
   mask_mode: blur
   blur_radius: 12
   expand_pixels: 8
+  prompt: "Answer with a short description of the visible objects."
+  max_new_tokens: 32
   image_dir: outputs/main/counterfactual_images
 
 nli:
   backend: mnli
   model_name_or_path: roberta-large-mnli
-  entailment_threshold: 0.5
+  entailment_threshold: 0.7
 
 ceg:
   top_k: 3

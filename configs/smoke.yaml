@@ -31,27 +31,35 @@ object_extraction:
 
 clip_grounding:
   backend: fake
-  patch_size: 16
+  patch_size: 32
   top_m: 4
+  support_norm_threshold: 1.0
   fake:
     default_score: 0.5
+    default_score_norm: 1.5
     scores:
       man: 0.95
       red car: 0.4
       tennis racket: 0.1
+    score_norms:
+      man: 2.0
+      red car: 1.5
+      tennis racket: 0.2
 
 counterfactual:
   mask_mode: blur
   blur_radius: 12
   expand_pixels: 8
+  prompt: "Answer with a short description of the visible objects."
+  max_new_tokens: 32
   image_dir: outputs/smoke/counterfactual_images
 
 nli:
   backend: fake
-  entailment_threshold: 0.5
+  entailment_threshold: 0.7
 
 ceg:
-  top_k: 2
+  top_k: 3
 
 vcd:
   cd_alpha: 1.0
