@@ -52,13 +52,13 @@ def _apply_method_defaults(config: dict[str, Any], method: str) -> None:
     defaults = method_config.get("defaults", {}) if isinstance(method_config, Mapping) else {}
     for key, value in defaults.items():
         section = _method_default_section(key, method)
-        config.setdefault(section, {})[key] = value
+        config.setdefault(section, {}).setdefault(key, value)
 
 
 def _method_default_section(key: str, method: str) -> str:
     if key in {"cd_alpha", "cd_beta", "noise_step"}:
         return "vcd"
-    if key in {"top_k", "risk_mode"}:
+    if key in {"top_k", "risk_mode", "object_revision"}:
         return "ceg"
     if key in {"entailment_threshold"}:
         return "nli"

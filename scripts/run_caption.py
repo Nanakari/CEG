@@ -26,7 +26,7 @@ def main() -> None:
     generator = build_generator(config, method=args.method)
     samples = load_coco_caption_samples(config["datasets"]["coco_chair"], ROOT, limit=args.limit)
     prompt = str(config.get("prompts", {}).get("caption", "Please describe the image in detail."))
-    max_new_tokens = int(config.get("generation", {}).get("caption_max_new_tokens", 64))
+    max_new_tokens = int(config.get("generation", {}).get("caption_max_new_tokens", 512))
     records = []
     for sample in samples:
         result = generate_for_sample(

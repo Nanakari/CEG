@@ -30,14 +30,12 @@ def compute_chair_metrics(
     hallucinated_removed_total = 0
 
     for record in records:
-        caption = str(record.get("revised_caption") or record.get("caption") or record.get("text") or "")
+        caption = _caption_text(record, prefer_revised=True)
         claims = extractor.extract(caption)
         predicted = [claim.normalized for claim in claims]
         predicted_set = set(predicted)
         gt_objects = {str(item).lower() for item in record.get("gt_objects", [])}
-        original_caption = str(
-            record.get("original_caption") or record.get("caption") or record.get("text") or ""
-        )
+        original_caption = _caption_text(record, prefer_revised=False)
         original_predicted = [claim.normalized for claim in extractor.extract(original_caption)]
         original_predicted_set = set(original_predicted)
         correct_original = {obj for obj in original_predicted_set if obj in gt_objects}
@@ -89,3 +87,11 @@ def compute_chair_metrics(
 
 def _mean(values: list[int] | list[float]) -> float:
     return float(sum(values) / len(values)) if values else 0.0
+
+
+def _caption_text(record: Mapping[str, Any], *, prefer_revised: bool) -> str:
+    keys = ("revised_caption", "caption", "text") if prefer_revised else ("original_caption", "caption", "text")
+    for key in keys:
+        if key in record and record[key] is not None:
+            return str(record[key])
+    return ""

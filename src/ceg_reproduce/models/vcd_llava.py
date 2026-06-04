@@ -31,7 +31,7 @@ class VcdLlavaGenerator:
         )
         self.device = str(runtime.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
         self.dtype = _resolve_dtype(torch, str(runtime.get("dtype", "float16")), self.device)
-        self.max_new_tokens = int(generation.get("caption_max_new_tokens", 64))
+        self.max_new_tokens = int(generation.get("caption_max_new_tokens", 512))
         self.do_sample = bool(generation.get("do_sample", True))
         self.temperature = float(generation.get("temperature", 1.0))
         self.top_p = float(generation.get("top_p", 1.0))

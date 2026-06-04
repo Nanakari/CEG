@@ -17,7 +17,8 @@ def test_smoke_pipeline_runs_end_to_end() -> None:
     metrics = read_json(ROOT / "outputs/smoke/metrics_coco_chair.json")
     table = ROOT / "outputs/smoke/tables/main_results.md"
 
-    assert revisions[0]["revised_caption"] == "A man is holding an object beside a car."
+    assert revisions[0]["revised_caption"] == "A man is beside a car."
+    assert "an object" not in revisions[0]["revised_caption"]
     assert revisions[0]["counterfactual_answers"][0]["generation"]["metadata"]["max_new_tokens"] == 8
     assert revisions[0]["counterfactual_answers"][0]["generation"]["metadata"]["do_sample"] is True
     assert "original_vqa_answer" in revisions[0]["verified_claims"][0]

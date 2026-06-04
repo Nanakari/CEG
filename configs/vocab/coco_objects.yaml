@@ -82,33 +82,69 @@ objects:
 synonyms:
   person:
     - man
+    - men
     - woman
+    - women
     - boy
+    - boys
     - girl
+    - girls
     - people
     - child
+    - children
     - kid
+    - kids
   bicycle:
     - bike
+    - bikes
   motorcycle:
     - motorbike
+    - motorbikes
   airplane:
     - plane
+    - planes
+    - airplanes
+    - aircrafts
     - aircraft
   couch:
     - sofa
+    - sofas
   tv:
     - television
+    - televisions
     - tv monitor
+    - tv monitors
   cell phone:
     - phone
+    - phones
+    - cellphone
+    - cellphones
+    - cell phone
+    - cell phones
     - mobile phone
+    - mobile phones
+    - mobile
+    - mobiles
   dining table:
     - table
+    - tables
   potted plant:
     - plant
+    - plants
   sports ball:
     - ball
+    - balls
+  bus:
+    - buses
+  knife:
+    - knives
+  skis:
+    - ski
+  snowboard:
+    - snowboards
+  hair drier:
+    - hair dryer
+    - hair dryers
 attributes:
   colors:
     - black
@@ -129,3 +165,12 @@ attributes:
     - plastic
     - glass
     - leather
+  size_age:
+    - young
+    - old
+    - little
+    - small
+    - large
+    - big
+    - tall
+    - short

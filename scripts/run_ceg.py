@@ -31,7 +31,7 @@ def main() -> None:
 
     generator = build_generator(config, method="base")
     grounder = build_grounder(config)
-    nli_scorer = build_nli_scorer(config)
+    nli_scorer = None if _uses_targeted_vqa(config) else build_nli_scorer(config)
     extractor = ClaimExtractor.from_config(config, ROOT)
     revision_records = []
     claim_records = []
@@ -68,6 +68,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--limit", type=int)
     return parser.parse_args()
+
+
+def _uses_targeted_vqa(config: dict) -> bool:
+    mode = str(config.get("verification", {}).get("mode", ""))
+    risk_mode = str(config.get("ceg", {}).get("risk_mode", ""))
+    return mode == "targeted_vqa" or risk_mode.startswith("targeted_vqa")
 
 
 if __name__ == "__main__":

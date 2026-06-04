@@ -8,7 +8,7 @@ generation:
   temperature: 1.0
   top_p: 1.0
   do_sample: true
-  caption_max_new_tokens: 32
+  caption_max_new_tokens: 512
   fake:
     default_caption: "A man is holding a tennis racket beside a red car."
     default_answer: "A man is holding a tennis racket beside a car."
@@ -43,7 +43,7 @@ clip_grounding:
   backend: fake
   patch_size: 32
   top_m: 4
-  support_norm_threshold: 1.0
+  support_norm_threshold: 3.0
   fake:
     default_score: 0.5
     default_score_norm: 1.5
@@ -84,7 +84,8 @@ nli:
 
 ceg:
   top_k: 3
-  risk_mode: targeted_vqa
+  risk_mode: targeted_vqa_support_guard
+  object_revision: drop
 
 vcd:
   cd_alpha: 1.0

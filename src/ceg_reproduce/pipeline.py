@@ -171,7 +171,11 @@ def run_ceg_record(
             }
         )
 
-    revision = revise_caption(caption, high_risk_claims)
+    revision = revise_caption(
+        caption,
+        high_risk_claims,
+        object_revision=str(config.get("ceg", {}).get("object_revision", "generalize")),
+    )
     base_latency = float(record.get("latency_sec", 0.0))
     return {
         "sample_id": sample_id,
@@ -196,27 +200,6 @@ def run_ceg_record(
         "base_latency_sec": base_latency,
         "external_lvlm_calls": 2 * len(verified_claims),
     }
-
-
-def _assess_claim_risk(
-    *,
-    claim: Claim,
-    cps: bool,
-    support_low: bool,
-    is_gt_object: bool,
-    cf_mentions_object: bool,
-    risk_mode: str,
-) -> tuple[bool, str]:
-    if risk_mode == "strict_support":
-        return (bool(cps and support_low), "strict_support" if cps and support_low else "not_strict_support")
-    if claim.claim_type == "attribute":
-        if cps and (cf_mentions_object or support_low):
-            return True, "attribute_cps"
-        return False, "attribute_retained"
-    if not is_gt_object and (cps or cf_mentions_object):
-        reason = "coco_absent_and_cps" if cps else "coco_absent_and_cf_mentions"
-        return True, reason
-    return False, "gt_object_retained" if is_gt_object else "coco_absent_without_persistence"
 
 
 def verify_claim_with_vqa(

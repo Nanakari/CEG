@@ -10,7 +10,7 @@ generation:
   temperature: 1.0
   top_p: 1.0
   do_sample: true
-  caption_max_new_tokens: 64
+  caption_max_new_tokens: 512
   return_token_scores: false
 
 prompts:
@@ -33,7 +33,7 @@ clip_grounding:
   patch_size: 32
   top_m: 4
   batch_size: 64
-  support_norm_threshold: 1.0
+  support_norm_threshold: 3.0
 
 counterfactual:
   mask_mode: blur
@@ -64,7 +64,8 @@ nli:
 
 ceg:
   top_k: 3
-  risk_mode: targeted_vqa
+  risk_mode: targeted_vqa_support_guard
+  object_revision: drop
 
 vcd:
   cd_alpha: 1.0

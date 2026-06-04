@@ -66,3 +66,38 @@ def test_chair_metrics_count_plural_objects_for_recall() -> None:
 
     assert metrics["recall"] == 1.0
     assert metrics["chairi"] == 0.0
+
+
+def test_chair_metrics_use_chair_style_synonyms_and_multiword_matching() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+    records = [
+        {
+            "caption": "People sit at tables with cellphones and hot dogs.",
+            "gt_objects": ["person", "dining table", "cell phone", "hot dog"],
+        }
+    ]
+
+    metrics = compute_chair_metrics(records, extractor)
+
+    assert metrics["recall"] == 1.0
+    assert metrics["chairi"] == 0.0
+
+
+def test_chair_metrics_preserve_empty_revised_caption() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+    records = [
+        {
+            "original_caption": "A tennis racket.",
+            "caption": "A tennis racket.",
+            "revised_caption": "",
+            "gt_objects": [],
+        }
+    ]
+
+    metrics = compute_chair_metrics(records, extractor)
+
+    assert metrics["chairs"] == 0.0
+    assert metrics["chairi"] == 0.0
+    assert metrics["average_length"] == 0.0

@@ -35,7 +35,7 @@ class LlavaHfGenerator:
         self.temperature = float(generation.get("temperature", 0.0))
         self.top_p = float(generation.get("top_p", 1.0))
         self.do_sample = bool(generation.get("do_sample", False))
-        self.max_new_tokens = int(generation.get("caption_max_new_tokens", 64))
+        self.max_new_tokens = int(generation.get("caption_max_new_tokens", 512))
 
         self.processor = AutoProcessor.from_pretrained(self.model_name_or_path)
         self.model = LlavaForConditionalGeneration.from_pretrained(

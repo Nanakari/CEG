@@ -43,3 +43,48 @@ def test_extracts_plural_coco_objects() -> None:
     assert by_text["chairs"].normalized == "chair"
     assert by_text["traffic lights"].normalized == "traffic light"
     assert by_text["wine glasses"].normalized == "wine glass"
+
+
+def test_extracts_chair_synonyms_and_protects_multiword_objects() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+
+    claims = extractor.extract(
+        "People sit on sofas near tables with cellphones, bikes, knives, and hot dogs."
+    )
+
+    by_text = {claim.text.lower(): claim for claim in claims}
+    assert by_text["people"].normalized == "person"
+    assert by_text["sofas"].normalized == "couch"
+    assert by_text["tables"].normalized == "dining table"
+    assert by_text["cellphones"].normalized == "cell phone"
+    assert by_text["bikes"].normalized == "bicycle"
+    assert by_text["knives"].normalized == "knife"
+    assert by_text["hot dogs"].normalized == "hot dog"
+    assert "dogs" not in by_text
+
+
+def test_extracts_additional_chair_aliases() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+
+    claims = extractor.extract("Cell phones sit beside a hair dryer, a ski, and snowboards.")
+
+    by_text = {claim.text.lower(): claim for claim in claims}
+    assert by_text["cell phones"].normalized == "cell phone"
+    assert by_text["hair dryer"].normalized == "hair drier"
+    assert by_text["ski"].normalized == "skis"
+    assert by_text["snowboards"].normalized == "snowboard"
+
+
+def test_extracts_size_age_attributes() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+
+    claims = extractor.extract("A young boy stands near a small car.")
+
+    by_text = {claim.text.lower(): claim for claim in claims}
+    assert by_text["young boy"].claim_type == "attribute"
+    assert by_text["young boy"].attribute == "young"
+    assert by_text["young boy"].object_text == "boy"
+    assert by_text["small car"].claim_type == "attribute"
