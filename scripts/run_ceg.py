@@ -22,7 +22,7 @@ from ceg_reproduce.utils.reproducibility import seed_everything
 def main() -> None:
     args = _parse_args()
     base_config = load_config(args.config)
-    config = config_for_method(base_config, "base")
+    config = config_for_method(base_config, "ceg")
     seed_everything(config)
     out_root = output_root(config, ROOT)
     base_path = out_root / "coco_base_captions.jsonl"

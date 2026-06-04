@@ -20,6 +20,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
 
 def config_for_method(config: Mapping[str, Any], method: str) -> dict[str, Any]:
     cloned = copy.deepcopy(dict(config))
+    _apply_method_defaults(cloned, method)
     generation = cloned.setdefault("generation", {})
     generation["method"] = method
     if method == "vcd":
@@ -41,3 +42,24 @@ def resolve_path(path: str | Path | None, project_root: str | Path = PROJECT_ROO
     if raw.is_absolute():
         return raw
     return Path(project_root) / raw
+
+
+def _apply_method_defaults(config: dict[str, Any], method: str) -> None:
+    method_path = PROJECT_ROOT / "configs" / "methods" / f"{method}.yaml"
+    if not method_path.exists():
+        return
+    method_config = load_yaml(method_path)
+    defaults = method_config.get("defaults", {}) if isinstance(method_config, Mapping) else {}
+    for key, value in defaults.items():
+        section = _method_default_section(key, method)
+        config.setdefault(section, {})[key] = value
+
+
+def _method_default_section(key: str, method: str) -> str:
+    if key in {"cd_alpha", "cd_beta", "noise_step"}:
+        return "vcd"
+    if key in {"top_k", "risk_mode"}:
+        return "ceg"
+    if key in {"entailment_threshold"}:
+        return "nli"
+    return method

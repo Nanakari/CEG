@@ -30,3 +30,16 @@ def test_orange_modifier_is_not_extracted_as_fruit_object() -> None:
     claims = extractor.extract("A truck carries a tall orange load.")
 
     assert "orange" not in {claim.text.lower() for claim in claims}
+
+
+def test_extracts_plural_coco_objects() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+
+    claims = extractor.extract("Two dogs sit on chairs beside traffic lights and wine glasses.")
+
+    by_text = {claim.text.lower(): claim for claim in claims}
+    assert by_text["dogs"].normalized == "dog"
+    assert by_text["chairs"].normalized == "chair"
+    assert by_text["traffic lights"].normalized == "traffic light"
+    assert by_text["wine glasses"].normalized == "wine glass"

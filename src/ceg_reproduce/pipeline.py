@@ -113,6 +113,7 @@ def run_ceg_record(
         is_gt_object = claim.normalized in gt_objects
         cf_mentions_object = _mentions_object(vqa["counterfactual_vqa_answer"], claim)
         risk, risk_reason = _assess_vqa_risk(
+            claim_type=claim.claim_type,
             original_state=str(vqa["original_state"]),
             counterfactual_state=str(vqa["counterfactual_state"]),
             support_low=support_low,
@@ -193,7 +194,7 @@ def run_ceg_record(
         "revision_count": len(revision.actions),
         "latency_sec": base_latency + extra_latency,
         "base_latency_sec": base_latency,
-        "external_lvlm_calls": len(verified_claims),
+        "external_lvlm_calls": 2 * len(verified_claims),
     }
 
 
@@ -290,10 +291,25 @@ def parse_yes_no(answer: str) -> str:
 
 
 def _assess_vqa_risk(
-    *, original_state: str, counterfactual_state: str, support_low: bool, risk_mode: str
+    *,
+    claim_type: str,
+    original_state: str,
+    counterfactual_state: str,
+    support_low: bool,
+    risk_mode: str,
 ) -> tuple[bool, str]:
-    if risk_mode != "targeted_vqa":
+    if risk_mode not in {"targeted_vqa", "targeted_vqa_support_guard"}:
         risk_mode = "targeted_vqa"
+    if risk_mode == "targeted_vqa_support_guard":
+        if original_state in {"no", "uncertain"}:
+            if claim_type == "attribute":
+                return True, f"attribute_{original_state}"
+            if support_low:
+                return True, f"{original_state}_and_low_support"
+            return False, f"{original_state}_but_local_support"
+        if counterfactual_state == "yes":
+            return False, "counterfactual_vqa_persistence_diagnostic"
+        return False, "vqa_supported"
     if original_state == "no":
         return True, "original_vqa_no"
     if original_state == "uncertain":

@@ -37,6 +37,7 @@ class ClaimExtractor:
         attributes: Mapping[str, Iterable[str]] | None = None,
         *,
         max_left_modifiers: int = 1,
+        include_plural_aliases: bool = True,
     ) -> None:
         self.objects = sorted({str(item).lower() for item in objects}, key=len, reverse=True)
         self.synonyms = {
@@ -51,9 +52,11 @@ class ClaimExtractor:
         self.max_left_modifiers = max_left_modifiers
         self.aliases: list[tuple[str, str]] = []
         for obj in self.objects:
-            self.aliases.append((obj, obj))
-            for alias in self.synonyms.get(obj, []):
+            for alias in _alias_variants(obj, include_plural_aliases):
                 self.aliases.append((alias, obj))
+            for alias in self.synonyms.get(obj, []):
+                for variant in _alias_variants(alias, include_plural_aliases):
+                    self.aliases.append((variant, obj))
         self.aliases.sort(key=lambda item: len(item[0]), reverse=True)
 
     @classmethod
@@ -68,6 +71,7 @@ class ClaimExtractor:
             vocab.get("synonyms", {}),
             vocab.get("attributes", {}),
             max_left_modifiers=int(extraction.get("max_left_modifiers", 1)),
+            include_plural_aliases=bool(extraction.get("include_plural_aliases", True)),
         )
 
     def extract(self, caption: str) -> list[Claim]:
@@ -174,6 +178,41 @@ def _clean_text(text: str) -> str:
 def _concreteness(normalized: str) -> float:
     abstract = {"scene", "view", "area", "background", "image"}
     return 0.0 if normalized.lower() in abstract else 1.0
+
+
+def _alias_variants(alias: str, include_plural_aliases: bool) -> set[str]:
+    normalized = alias.lower().strip()
+    variants = {normalized}
+    if include_plural_aliases:
+        variants.update(_plural_variants(normalized))
+    return variants
+
+
+def _plural_variants(alias: str) -> set[str]:
+    parts = alias.split()
+    if not parts:
+        return set()
+    last = parts[-1]
+    irregular = {
+        "person": {"people", "persons"},
+        "man": {"men"},
+        "woman": {"women"},
+        "child": {"children", "kids"},
+        "mouse": {"mice"},
+        "knife": {"knives"},
+    }
+    plural_last = set(irregular.get(last, set()))
+    if last.endswith("y") and len(last) > 1 and last[-2] not in "aeiou":
+        plural_last.add(last[:-1] + "ies")
+    elif last.endswith(("s", "x", "z", "ch", "sh")):
+        plural_last.add(last + "es")
+    elif last.endswith("fe"):
+        plural_last.add(last[:-2] + "ves")
+    elif last.endswith("f"):
+        plural_last.add(last[:-1] + "ves")
+    else:
+        plural_last.add(last + "s")
+    return {" ".join(parts[:-1] + [plural]) for plural in plural_last if plural != last}
 
 
 def _looks_like_color_modifier(caption: str, object_end: int, objects: Iterable[str]) -> bool:

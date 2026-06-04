@@ -64,7 +64,7 @@ nli:
 
 ceg:
   top_k: 3
-  risk_mode: targeted_vqa
+  risk_mode: targeted_vqa_support_guard
 
 vcd:
   cd_alpha: 1.0

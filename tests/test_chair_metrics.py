@@ -50,3 +50,19 @@ def test_chair_metrics_track_rejection_and_removal_rates() -> None:
     assert metrics["false_rejection_rate"] == 0.5
     assert metrics["correct_retention_rate"] == 0.5
     assert metrics["hallucinated_removal_rate"] == 1.0
+
+
+def test_chair_metrics_count_plural_objects_for_recall() -> None:
+    config = load_config(ROOT / "configs/smoke.yaml")
+    extractor = ClaimExtractor.from_config(config, ROOT)
+    records = [
+        {
+            "caption": "Two dogs sit on chairs beside cars.",
+            "gt_objects": ["dog", "chair", "car"],
+        }
+    ]
+
+    metrics = compute_chair_metrics(records, extractor)
+
+    assert metrics["recall"] == 1.0
+    assert metrics["chairi"] == 0.0
